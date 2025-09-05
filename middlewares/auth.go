@@ -6,8 +6,9 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 
+	"blog-server/config"
+
 	"github.com/gin-gonic/gin"
-	"github.com/vsouza/go-gin-boilerplate/config"
 )
 
 func sha256Sum(s string) []byte {
