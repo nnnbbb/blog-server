@@ -6,3 +6,4 @@ Godeps/
 go-gin-boilerplate
 
 .vscode/
+.env

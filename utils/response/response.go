@@ -14,7 +14,7 @@ type Response struct {
 
 // 成功响应
 func Ok(c *gin.Context, data interface{}, messages ...string) {
-	message := ""
+	message := "success"
 	if len(messages) > 0 && messages[0] != "" {
 		message = messages[0]
 	}

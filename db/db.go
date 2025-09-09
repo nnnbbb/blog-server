@@ -1,26 +1,42 @@
 package db
 
 import (
-	"blog-server/config"
+	"blog-server/models"
+	"fmt"
+	"log"
+	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-var db *dynamodb.DynamoDB
+var DB *gorm.DB
 
-func Init() {
-	c := config.GetConfig()
-	db = dynamodb.New(session.New(&aws.Config{
-		Region:      aws.String(c.GetString("db.region")),
-		Credentials: credentials.NewEnvCredentials(),
-		Endpoint:    aws.String(c.GetString("db.endpoint")),
-		DisableSSL:  aws.Bool(c.GetBool("db.disable_ssl")),
-	}))
+func InitDB() {
+	host := "localhost"
+
+	user := os.Getenv("DB_USER")
+	password := os.Getenv("DB_PASS")
+	dbname := os.Getenv("DB_NAME")
+	port := os.Getenv("DB_PORT")
+
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=Asia/Shanghai",
+		host, user, password, dbname, port,
+	)
+
+	var err error
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		log.Fatal("failed to connect to database:", err)
+	}
+
+	// 自动迁移表
+	if err := DB.AutoMigrate(&models.Post{}); err != nil {
+		log.Fatal("failed to migrate database:", err)
+	}
 }
 
-func GetDB() *dynamodb.DynamoDB {
-	return db
+func GetDB() *gorm.DB {
+	return DB
 }

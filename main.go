@@ -8,6 +8,9 @@ import (
 	"blog-server/config"
 	"blog-server/db"
 	"blog-server/server"
+	"log"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
@@ -18,6 +21,13 @@ func main() {
 	}
 	flag.Parse()
 	config.Init(*environment)
-	db.Init()
+
+	// 读取 .env 文件
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("加载 .env 文件失败: ", err)
+	}
+
+	db.InitDB()
 	server.Init()
 }
