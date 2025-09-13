@@ -55,6 +55,8 @@ func NewRouter() *gin.Engine {
 		{
 			// 搜索文章
 			postGroup.GET("/search", controllers.SearchPosts)
+			postGroup.GET("/query-blog", utils.BindAndRespondR(controllers.GetPosts))
+
 			// 根据标签获取文章
 			postGroup.GET("/tag", controllers.GetPostsByTag)
 			postGroup.GET("/get-tags", controllers.GetTags)

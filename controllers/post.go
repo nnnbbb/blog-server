@@ -72,6 +72,47 @@ func GetPost(c *gin.Context, q forms.FetchPostQuery) (models.Post, error) {
 	return post, nil
 }
 
+// GetPosts 获取文章分页列表（不返回 content，调整时间格式化）
+func GetPosts(c *gin.Context, q forms.FetchPostsQuery) (forms.PostsPage, error) {
+	var posts []models.Post
+	var total int64
+
+	// 计算总数
+	if err := db.DB.Model(&models.Post{}).Count(&total).Error; err != nil {
+		return forms.PostsPage{}, utils.NewAPIError(http.StatusInternalServerError, "查询总数失败", err)
+	}
+
+	offset := (q.Page - 1) * q.PageSize
+
+	// 查询分页数据
+	if err := db.DB.Order("created_at DESC").Limit(q.PageSize).Offset(offset).Find(&posts).Error; err != nil {
+		return forms.PostsPage{}, utils.NewAPIError(http.StatusInternalServerError, "查询文章失败", err)
+	}
+
+	// 转换为 DTO
+	list := make([]forms.PostItem, len(posts))
+	for i, p := range posts {
+		tagNames, err := services.GetTagNamesByIDs(p.TagIDs)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, "获取标签失败")
+			return forms.PostsPage{}, utils.NewAPIError(http.StatusInternalServerError, "获取标签失败", err)
+		}
+
+		list[i] = forms.PostItem{
+			ID:         p.ID,
+			Title:      p.Title,
+			ImgUrl:     p.ImgUrl,
+			Tags:       tagNames,
+			AdjustTime: p.AdjustTime.Format("2006年01月02日 15:04"),
+		}
+	}
+
+	return forms.PostsPage{
+		Total: total,
+		List:  list,
+	}, nil
+}
+
 // GetTags 获取所有标签
 func GetTags(c *gin.Context) {
 	var tags []models.Tag
