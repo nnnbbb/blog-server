@@ -7,7 +7,7 @@ import (
 	"blog-server/config"
 	"blog-server/forms"
 	"blog-server/services"
-	"blog-server/utils/response"
+	"blog-server/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -47,9 +47,7 @@ func GenerateJWT(username string) (string, error) {
 	return token.SignedString(stringKey)
 }
 
-func (u UserController) Login(c *gin.Context) {
-	// 假设从请求中获取用户名密码进行校验
-	form := c.MustGet("payload").(forms.LoginBody)
+func (u UserController) Login(c *gin.Context, form forms.LoginBody) (string, error) {
 	username := form.Username
 	password := form.Password
 
@@ -57,11 +55,11 @@ func (u UserController) Login(c *gin.Context) {
 		token, err := GenerateJWT(username)
 
 		if err != nil {
-			response.Error(c, http.StatusInternalServerError, err.Error())
-			return
+			return "", utils.NewAPIError(http.StatusInternalServerError, "Token 生成失败", err)
 		}
-		response.Ok(c, gin.H{"token": token}, "登录成功")
-	} else {
-		response.Fail(c, http.StatusUnauthorized, "用户名或密码错误")
+		return token, nil
 	}
+
+	return "", utils.NewAPIError(http.StatusBadRequest, "用户名或密码错误")
+
 }

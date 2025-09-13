@@ -3,9 +3,9 @@ package controllers
 import (
 	"blog-server/db"
 	"blog-server/models"
+	"blog-server/services"
 	"blog-server/utils/response"
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -26,15 +26,17 @@ func GetNews(c *gin.Context) {
 		if len(runes) > 100 {
 			description = string(runes[:100]) + "..."
 		}
-		var tags []string
-		if post.Tags != "" {
-			tags = strings.Split(post.Tags, ",")
+
+		tagNames, err := services.GetTagNamesByIDs(post.TagIDs)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, "获取标签失败")
+			return
 		}
 		newsItem := NewsItem{
 			ID:          post.ID,
 			Title:       post.Title,
 			Description: description,
-			Tags:        tags,
+			Tags:        tagNames,
 			AdjustTime:  post.AdjustTime.Format("2006-01-02 15:04"),
 			ImgUrl:      post.ImgUrl,
 		}

@@ -1,12 +1,16 @@
 package services
 
 import (
-	"blog-server/config"
+	"io"
+	"log"
+	"os"
+	"time"
 
 	"encoding/json"
 
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 // 天气
@@ -33,8 +37,7 @@ type Live struct {
 }
 
 func GetWeather(city string, cityCode string) (*Live, error) {
-	cfg := config.GetConfig()
-	amapApiKey := cfg.GetString("server.amapApiKey")
+	amapApiKey := os.Getenv("AMAP_API_KEY")
 
 	url := fmt.Sprintf("https://restapi.amap.com/v3/weather/weatherInfo?city=%s&key=%s", cityCode, amapApiKey)
 
@@ -54,4 +57,53 @@ func GetWeather(city string, cityCode string) (*Live, error) {
 	}
 
 	return &weather.Lives[0], nil
+}
+
+type DmoeResponse struct {
+	Code   string `json:"code"`
+	ImgURL string `json:"imgurl"`
+	Width  string `json:"width"`
+	Height string `json:"height"`
+}
+
+func getRealImageURL(fullURL string) string {
+	u, err := url.Parse(fullURL)
+	if err != nil {
+		log.Println("解析 URL 失败:", err)
+		return fullURL
+	}
+
+	// 从查询参数获取 url 值
+	values := u.Query()
+	realURL := values.Get("url")
+	if realURL == "" {
+		return fullURL
+	}
+
+	return realURL
+}
+
+func FetchRandomImage() (string, error) {
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	url := "https://www.dmoe.cc/random.php?return=json"
+	resp, err := client.Get(url)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+
+	// 读取响应
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+
+	// 解析 JSON
+	var data DmoeResponse
+	if err := json.Unmarshal(body, &data); err != nil {
+		panic(err)
+	}
+
+	return getRealImageURL(data.ImgURL), nil
 }

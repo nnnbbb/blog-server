@@ -4,18 +4,20 @@ import (
 	"net/http"
 
 	"blog-server/db"
+	"blog-server/forms"
 	"blog-server/models"
+	"blog-server/services"
 	"blog-server/utils"
 	"blog-server/utils/response"
 
 	"github.com/gin-gonic/gin"
 )
 
-type PostReq struct {
-	Title   string `json:"title"`
-	Content string `json:"content"`
-	Tags    string `json:"tags"`
-	ImgUrl  string `json:"img_url"`
+type CreatePostBody struct {
+	Title   string   `json:"title"`
+	Content string   `json:"content"`
+	Tags    []string `json:"tags"`
+	ImgUrl  string   `json:"img_url"`
 }
 
 // NewsItem 首页最新文章结构
@@ -29,48 +31,59 @@ type NewsItem struct {
 }
 
 // CreatePost  创建文章
-func CreatePost(c *gin.Context) {
-	var postReq PostReq
-	if err := c.ShouldBindJSON(&postReq); err != nil {
-		response.Error(c, http.StatusBadRequest, "请求参数错误")
-		return
+func CreatePost(c *gin.Context, body forms.CreatePostBody) (models.Post, error) {
+	tagIDs, err := services.ResolveTagIDs(body.Tags)
+	if err != nil {
+		return models.Post{}, utils.NewAPIError(http.StatusInternalServerError, "标签处理失败", err)
 	}
 
 	post := models.Post{
-		Title:   postReq.Title,
-		Content: postReq.Content,
-		Tags:    postReq.Tags,
-		ImgUrl:  postReq.ImgUrl,
+		Title:   body.Title,
+		Content: body.Content,
+		ImgUrl:  body.ImgUrl,
+		TagIDs:  tagIDs,
 	}
 
 	if err := db.DB.Create(&post).Error; err != nil {
-		response.Error(c, http.StatusInternalServerError, "文章创建失败")
-		return
+		return post, utils.NewAPIError(http.StatusInternalServerError, "文章创建失败", err)
 	}
 
-	response.Ok(c, post, "文章创建成功")
+	return post, nil
 }
 
 // GetPost 获取单篇文章
-func GetPost(c *gin.Context) {
-	id := c.Param("id")
+func GetPost(c *gin.Context, q forms.FetchPostQuery) (models.Post, error) {
+	id := q.Seq
+
 	var post models.Post
 	if err := db.DB.First(&post, id).Error; err != nil {
-		response.Error(c, http.StatusNotFound, "文章获取失败")
-		return
+		return post, utils.NewAPIError(http.StatusBadRequest, "文章获取失败", err)
 	}
 
 	// 压缩 Markdown 字段
 	compressed, err := utils.CompressAndEncode([]byte(post.Content))
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "压缩文章失败")
-		return
+		return post, utils.NewAPIError(http.StatusInternalServerError, "压缩文章失败", err)
 	}
 
 	// 返回时替换原字段
 	post.Content = compressed
 
-	response.Ok(c, post, "文章获取成功")
+	return post, nil
+}
+
+// GetTags 获取所有标签
+func GetTags(c *gin.Context) {
+	var tags []models.Tag
+	if err := db.DB.Find(&tags).Error; err != nil {
+		response.Error(c, http.StatusNotFound, "获取失败")
+		return
+	}
+	var ts []string
+	for _, t := range tags {
+		ts = append(ts, t.Name)
+	}
+	response.Ok(c, ts, "获取成功")
 }
 
 // UpdatePost 更新文章
@@ -78,19 +91,27 @@ func UpdatePost(c *gin.Context) {
 	id := c.Param("id")
 	var post models.Post
 	if err := db.DB.First(&post, id).Error; err != nil {
-		response.Error(c, http.StatusNotFound, "文章获取失败")
+		response.Error(c, http.StatusNotFound, "文章不存在")
 		return
 	}
 
-	var postReq PostReq
+	var postReq CreatePostBody
 	if err := c.ShouldBindJSON(&postReq); err != nil {
 		response.Error(c, http.StatusBadRequest, "请求参数错误")
 		return
 	}
 
+	// 调用通用方法获取 tagIDs
+	tagIDs, err := services.ResolveTagIDs(postReq.Tags)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "标签处理失败")
+		return
+	}
+
 	post.Title = postReq.Title
 	post.Content = postReq.Content
-	post.Tags = postReq.Tags
+	post.ImgUrl = postReq.ImgUrl
+	post.TagIDs = tagIDs
 
 	if err := db.DB.Save(&post).Error; err != nil {
 		response.Error(c, http.StatusInternalServerError, "文章更新失败")

@@ -6,18 +6,32 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func ValidateBody[T any]() gin.HandlerFunc {
+// ValidateRequest 根据请求方法自动绑定参数到上下文
+// GET/DELETE -> Query
+// 其他方法 -> JSON/Form
+// key 用于设置到 c.Set 的上下文 key
+func ValidateRequest[T any]() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var payload T
-		if err := c.ShouldBind(&payload); err != nil {
+		var data T
+		var err error
+
+		switch c.Request.Method {
+		case http.MethodGet, http.MethodDelete:
+			err = c.ShouldBindQuery(&data)
+		default:
+			err = c.ShouldBind(&data)
+		}
+
+		if err != nil {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 				"message": "parameter error",
 				"data":    err.Error(),
 			})
 			return
 		}
-		// 将解析结果放入上下文中，供控制器使用
-		c.Set("payload", payload)
+
+		// 设置到上下文
+		c.Set("payload", data)
 		c.Next()
 	}
 }

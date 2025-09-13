@@ -2,8 +2,8 @@ package server
 
 import (
 	"blog-server/controllers"
-	"blog-server/forms"
 	"blog-server/middlewares"
+	"blog-server/utils"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -36,7 +36,7 @@ func NewRouter() *gin.Engine {
 		userGroup := api.Group("user")
 		{
 			user := new(controllers.UserController)
-			userGroup.POST("/login", middlewares.ValidateBody[forms.LoginBody](), user.Login)
+			userGroup.POST("/login", utils.BindAndRespondR(user.Login))
 
 			// router.Use(middlewares.JWTMiddleware())
 			// userGroup.Use(middlewares.JWTMiddleware())
@@ -51,19 +51,37 @@ func NewRouter() *gin.Engine {
 		}
 
 		// 文章相关路由（暂时不需要认证，方便测试）
-		postGroup := api.Group("posts")
+		postGroup := api.Group("blog")
 		{
-			postGroup.GET("/search", controllers.SearchPosts) // 搜索文章
-			postGroup.GET("/tag", controllers.GetPostsByTag)  // 根据标签获取文章
-			postGroup.GET("/:id", controllers.GetPost)        // 获取单篇文章
-			postGroup.POST("", controllers.CreatePost)        // 创建文章
-			postGroup.PUT("/:id", controllers.UpdatePost)     // 更新文章
-			postGroup.DELETE("/:id", controllers.DeletePost)  // 删除文章
+			// 搜索文章
+			postGroup.GET("/search", controllers.SearchPosts)
+			// 根据标签获取文章
+			postGroup.GET("/tag", controllers.GetPostsByTag)
+			postGroup.GET("/get-tags", controllers.GetTags)
+			// 获取单篇文章
+			postGroup.GET("/fetch-blog-by-seq",
+				utils.BindAndRespondR(controllers.GetPost),
+			)
+
+			// 创建文章
+			postGroup.POST("", utils.BindAndRespondR(controllers.CreatePost))
+
+			// 更新文章
+			postGroup.PUT("/:id", controllers.UpdatePost)
+			// 删除文章
+			postGroup.DELETE("/:id", controllers.DeletePost)
 		}
 
 		thirdpartyGroup := api.Group("thirdparty")
 		{
-			thirdpartyGroup.GET("/get-city-weather-by-ip", controllers.GetWeather)
+			thirdpartyGroup.GET(
+				"/get-weather-by-city",
+				utils.BindAndRespondR(controllers.GetWeather),
+			)
+			thirdpartyGroup.GET(
+				"/random-image-url",
+				utils.BindAndRespond(controllers.GetRomdomImage),
+			)
 		}
 
 	}

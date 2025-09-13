@@ -32,7 +32,10 @@ func InitDB() {
 	}
 
 	// 自动迁移表
-	if err := DB.AutoMigrate(&models.Post{}); err != nil {
+	if err := DB.AutoMigrate(
+		&models.Post{},
+		&models.Tag{},
+	); err != nil {
 		log.Fatal("failed to migrate database:", err)
 	}
 }
