@@ -11,6 +11,15 @@ type CreatePostBody struct {
 	ImgUrl  string   `json:"imgUrl" binding:"required"`
 }
 
+type PostResponse struct {
+	ID         uint     `json:"id"`
+	Title      string   `json:"title"`
+	ImgUrl     string   `json:"imgUrl"`
+	Content    string   `json:"content"`
+	AdjustTime string   `json:"adjustTime"`
+	Tags       []string `json:"tags"`
+}
+
 type FetchPostsQuery struct {
 	Page     int `form:"page" binding:"required,min=1"`
 	PageSize int `form:"pageSize" binding:"required,min=1,max=100"`

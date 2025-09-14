@@ -13,6 +13,17 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// @title           我的博客 API
+// @version         1.0
+// @description     基于 Gin 的博客后端 API
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   xinghe
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@swagger.io
+
+// @host      localhost:8080
+// @BasePath  /
 func main() {
 	environment := flag.String("e", "development", "")
 	flag.Usage = func() {

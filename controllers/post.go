@@ -30,11 +30,20 @@ type NewsItem struct {
 	AdjustTime  string   `json:"adjustTime"`
 }
 
-// CreatePost  创建文章
-func CreatePost(c *gin.Context, body forms.CreatePostBody) (models.Post, error) {
+// CreatePost 创建文章
+// @Summary 创建文章
+// @Description 根据传入的参数创建一篇新文章
+// @Tags blog
+// @Accept json
+// @Produce json
+// @Param data body forms.CreatePostBody true "文章信息"
+// @Success 200 {object} forms.PostResponse
+// @Failure 400 {object} utils.ErrorResponse
+// @Router /blog [post]
+func CreatePost(c *gin.Context, body forms.CreatePostBody) (forms.PostResponse, error) {
 	tagIDs, err := services.ResolveTagIDs(body.Tags)
 	if err != nil {
-		return models.Post{}, utils.NewAPIError(http.StatusInternalServerError, "标签处理失败", err)
+		return forms.PostResponse{}, utils.NewAPIError(http.StatusInternalServerError, "标签处理失败", err)
 	}
 
 	post := models.Post{
@@ -45,31 +54,51 @@ func CreatePost(c *gin.Context, body forms.CreatePostBody) (models.Post, error) 
 	}
 
 	if err := db.DB.Create(&post).Error; err != nil {
-		return post, utils.NewAPIError(http.StatusInternalServerError, "文章创建失败", err)
+		return forms.PostResponse{}, utils.NewAPIError(http.StatusInternalServerError, "文章创建失败", err)
 	}
 
-	return post, nil
+	// 转换成响应对象返回前端
+	resp := forms.PostResponse{
+		ID:         post.ID,
+		Title:      post.Title,
+		ImgUrl:     post.ImgUrl,
+		AdjustTime: post.AdjustTime.Format("2006-01-02 15:04:05"),
+	}
+
+	return resp, nil
 }
 
 // GetPost 获取单篇文章
-func GetPost(c *gin.Context, q forms.FetchPostQuery) (models.Post, error) {
+func GetPost(c *gin.Context, q forms.FetchPostQuery) (forms.PostResponse, error) {
 	id := q.Seq
 
 	var post models.Post
 	if err := db.DB.First(&post, id).Error; err != nil {
-		return post, utils.NewAPIError(http.StatusBadRequest, "文章获取失败", err)
+		return forms.PostResponse{}, utils.NewAPIError(http.StatusBadRequest, "文章获取失败", err)
 	}
 
 	// 压缩 Markdown 字段
 	compressed, err := utils.CompressAndEncode([]byte(post.Content))
 	if err != nil {
-		return post, utils.NewAPIError(http.StatusInternalServerError, "压缩文章失败", err)
+		return forms.PostResponse{}, utils.NewAPIError(http.StatusInternalServerError, "压缩文章失败", err)
 	}
-
+	tagNames, err := services.GetTagNamesByIDs(post.TagIDs)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "获取标签失败")
+		return forms.PostResponse{}, utils.NewAPIError(http.StatusInternalServerError, "获取标签失败", err)
+	}
 	// 返回时替换原字段
 	post.Content = compressed
+	resp := forms.PostResponse{
+		ID:         post.ID,
+		Title:      post.Title,
+		ImgUrl:     post.ImgUrl,
+		Tags:       tagNames,
+		Content:    compressed,
+		AdjustTime: post.AdjustTime.Format("2006-01-02 15:04:05"),
+	}
 
-	return post, nil
+	return resp, nil
 }
 
 // GetPosts 获取文章分页列表（不返回 content，调整时间格式化）
