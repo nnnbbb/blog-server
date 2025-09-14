@@ -12,6 +12,11 @@ type APIError struct {
 	Message string
 	Err     error
 }
+type ErrorResponse struct {
+	Code         int
+	ErrorMessage string
+	Message      string
+}
 
 func (e *APIError) Error() string {
 	return e.Err.Error()
@@ -37,18 +42,19 @@ func NewAPIError(code int, message string, opts ...error) *APIError {
 func handleError(c *gin.Context, err error) {
 	var apiErr *APIError
 	status := http.StatusInternalServerError
-	msg := "内部错误"
+	message := "内部错误"
 
 	if errors.As(err, &apiErr) {
 		status = apiErr.Code
-		msg = apiErr.Message
+		message = apiErr.Message
 	} else {
-		msg = err.Error()
+		message = err.Error()
 	}
 
-	c.AbortWithStatusJSON(status, gin.H{
-		"code":  status,
-		"error": msg,
+	c.AbortWithStatusJSON(status, ErrorResponse{
+		Code:         status,
+		ErrorMessage: apiErr.Err.Error(),
+		Message:      message,
 	})
 }
 
