@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"net/http"
+	"strings"
+	"time"
 
 	"blog-server/db"
 	"blog-server/forms"
@@ -11,6 +13,7 @@ import (
 	"blog-server/utils/response"
 
 	"github.com/gin-gonic/gin"
+	"github.com/lib/pq"
 )
 
 type CreatePostBody struct {
@@ -56,7 +59,11 @@ func CreatePost(c *gin.Context, body forms.CreatePostBody) (forms.PostResponse, 
 	if err := db.DB.Create(&post).Error; err != nil {
 		return forms.PostResponse{}, utils.NewAPIError(http.StatusInternalServerError, "文章创建失败", err)
 	}
-
+	// --- 自动生成 tokens ---
+	if err := services.UpdatePostTokens(&post); err != nil {
+		// 如果分词失败，可以选择回滚或记录错误
+		return forms.PostResponse{}, utils.NewAPIError(http.StatusInternalServerError, "文章分词失败", err)
+	}
 	// 转换成响应对象返回前端
 	resp := forms.PostResponse{
 		ID:         post.ID,
@@ -216,22 +223,55 @@ func GetPostsByTag(c *gin.Context) {
 	response.Ok(c, posts, "获取文章成功")
 }
 
-// SearchPosts 搜索文章（支持标题、内容和标签搜索）
-func SearchPosts(c *gin.Context) {
-	query := c.Query("q")
-	if query == "" {
-		response.Error(c, http.StatusBadRequest, "查询参数不能为空")
-		return
+// 搜索文章
+func SearchPosts(c *gin.Context, q forms.SearchPosts) ([]forms.PostItem, error) {
+	tsQuery := q.Q
+
+	// 结构体用于扫描 SQL 查询结果
+	var posts []struct {
+		ID         uint
+		Title      string
+		TagIDs     pq.Int64Array `gorm:"type:integer[]"`
+		ImgUrl     string
+		Content    string
+		AdjustTime time.Time
+		Score      float64
 	}
 
-	var posts []models.Post
-	searchPattern := "%" + query + "%"
+	sql := `
+		SELECT id, title, content, tag_ids, img_url, adjust_time,
+		       ts_rank(tokens, to_tsquery('simple', ?)) AS score
+		FROM posts
+		WHERE tokens @@ to_tsquery('simple', ?)
+		ORDER BY score DESC
+		LIMIT 20
+	`
 
-	// 在标题、内容和标签中搜索
-	if err := db.DB.Where("title LIKE ? OR content LIKE ? OR tags LIKE ?",
-		searchPattern, searchPattern, searchPattern).Find(&posts).Error; err != nil {
-		response.Error(c, http.StatusInternalServerError, "搜索文章失败")
-		return
+	if err := db.GetDB().Raw(sql, tsQuery, tsQuery, tsQuery).Scan(&posts).Error; err != nil {
+		return nil, utils.NewAPIError(http.StatusInternalServerError, "查询失败", err)
 	}
-	response.Ok(c, posts, "搜索文章成功")
+
+	// 构造返回数据
+	list := make([]forms.PostItem, len(posts))
+	for i, p := range posts {
+		// 获取标签名
+		tagNames, err := services.GetTagNamesByIDs(p.TagIDs)
+		if err != nil {
+			return nil, utils.NewAPIError(http.StatusInternalServerError, "获取标签失败", err)
+		}
+
+		// 生成摘要
+		contentSummary := services.GenerateSummary(p.Content, tsQuery, 200, 50)
+
+		list[i] = forms.PostItem{
+			ID:         p.ID,
+			Title:      p.Title,
+			ImgUrl:     p.ImgUrl,
+			Tags:       tagNames,
+			AdjustTime: p.AdjustTime.Format("2006年01月02日 15:04"),
+			Content:    strings.ReplaceAll(contentSummary, "\n", ""),
+		}
+	}
+
+	return list, nil
 }

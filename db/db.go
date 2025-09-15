@@ -2,6 +2,7 @@ package db
 
 import (
 	"blog-server/models"
+	"blog-server/utils"
 	"fmt"
 	"log"
 	"os"
@@ -38,6 +39,28 @@ func InitDB() {
 	); err != nil {
 		log.Fatal("failed to migrate database:", err)
 	}
+
+	// 调用 EnsureGinIndex 创建扩展和索引
+	EnsureGinIndex()
+
+	utils.Log("Database initialized.")
+}
+
+// EnsureGinIndex 确保 pg_trgm 扩展和 GIN 索引存在
+func EnsureGinIndex() {
+	sqls := []string{
+		"CREATE EXTENSION IF NOT EXISTS pg_trgm;",
+		//  posts 表 tokens 字段
+		"CREATE INDEX IF NOT EXISTS idx_posts_tokens ON posts USING GIN(tokens);",
+	}
+
+	for _, sql := range sqls {
+		if err := DB.Exec(sql).Error; err != nil {
+			log.Fatalf("failed to execute %q: %v", sql, err)
+		}
+	}
+
+	utils.Log("PG GIN index and extension ensured.")
 }
 
 func GetDB() *gorm.DB {

@@ -54,7 +54,7 @@ func NewRouter() *gin.Engine {
 		postGroup := api.Group("blog")
 		{
 			// 搜索文章
-			postGroup.GET("/search", controllers.SearchPosts)
+			postGroup.GET("/search", utils.BindAndRespondR(controllers.SearchPosts))
 			postGroup.GET("/query-blog", utils.BindAndRespondR(controllers.GetPosts))
 
 			// 根据标签获取文章

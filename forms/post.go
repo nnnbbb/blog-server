@@ -31,9 +31,13 @@ type PostItem struct {
 	ImgUrl     string   `json:"imgUrl"`
 	Tags       []string `json:"tags"`
 	AdjustTime string   `json:"adjustTime"` // 格式化后的时间
+	Content    string   `json:"content"`
 }
 
 type PostsPage struct {
 	Total int64      `json:"total"`
 	List  []PostItem `json:"list"`
+}
+type SearchPosts struct {
+	Q string `form:"q"`
 }

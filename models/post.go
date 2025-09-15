@@ -13,6 +13,7 @@ type Post struct {
 	ImgUrl     string        `gorm:"size:255" json:"img_url"`
 	TagIDs     pq.Int64Array `gorm:"type:integer[]" json:"tag_ids"`
 	AdjustTime time.Time     `gorm:"default:CURRENT_TIMESTAMP" json:"adjust_time"`
+	Tokens     string        `gorm:"type:tsvector" json:"-"`
 
 	Timestamps
 }
