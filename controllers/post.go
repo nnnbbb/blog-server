@@ -3,35 +3,17 @@ package controllers
 import (
 	"net/http"
 	"strings"
-	"time"
 
 	"blog-server/db"
 	"blog-server/forms"
+	"blog-server/forms/post"
 	"blog-server/models"
 	"blog-server/services"
 	"blog-server/utils"
 	"blog-server/utils/response"
 
 	"github.com/gin-gonic/gin"
-	"github.com/lib/pq"
 )
-
-type CreatePostBody struct {
-	Title   string   `json:"title"`
-	Content string   `json:"content"`
-	Tags    []string `json:"tags"`
-	ImgUrl  string   `json:"img_url"`
-}
-
-// NewsItem 首页最新文章结构
-type NewsItem struct {
-	ID          uint     `json:"id"`
-	Title       string   `json:"title"`
-	Description string   `json:"description"`
-	Tags        []string `json:"tags"`
-	ImgUrl      string   `json:"img_url"`
-	AdjustTime  string   `json:"adjustTime"`
-}
 
 // CreatePost 创建文章
 // @Summary 创建文章
@@ -172,22 +154,22 @@ func UpdatePost(c *gin.Context) {
 		return
 	}
 
-	var postReq CreatePostBody
-	if err := c.ShouldBindJSON(&postReq); err != nil {
+	var postBody forms.CreatePostBody
+	if err := c.ShouldBindJSON(&postBody); err != nil {
 		response.Error(c, http.StatusBadRequest, "请求参数错误")
 		return
 	}
 
 	// 调用通用方法获取 tagIDs
-	tagIDs, err := services.ResolveTagIDs(postReq.Tags)
+	tagIDs, err := services.ResolveTagIDs(postBody.Tags)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "标签处理失败")
 		return
 	}
 
-	post.Title = postReq.Title
-	post.Content = postReq.Content
-	post.ImgUrl = postReq.ImgUrl
+	post.Title = postBody.Title
+	post.Content = postBody.Content
+	post.ImgUrl = postBody.ImgUrl
 	post.TagIDs = tagIDs
 
 	if err := db.DB.Save(&post).Error; err != nil {
@@ -223,19 +205,32 @@ func GetPostsByTag(c *gin.Context) {
 	response.Ok(c, posts, "获取文章成功")
 }
 
-// 搜索文章
-func SearchPosts(c *gin.Context, q forms.SearchPosts) ([]forms.PostItem, error) {
-	tsQuery := q.Q
+// SearchPosts 搜索文章
+// @Summary 搜索文章
+// @Description 根据传入的参数搜索文章
+// @Tags blog
+// @Accept json
+// @Produce json
+// @Param data body forms.SearchPosts true "文章关键字"
+// @Success 200 {object} forms.PostsPage
+// @Failure 400 {object} utils.ErrorResponse
+// @Router /search [post]
+func SearchPosts(c *gin.Context, q forms.SearchPosts) (forms.PostsPage, error) {
+	words := services.SegmentText(q.Q)
 
-	// 结构体用于扫描 SQL 查询结果
-	var posts []struct {
-		ID         uint
-		Title      string
-		TagIDs     pq.Int64Array `gorm:"type:integer[]"`
-		ImgUrl     string
-		Content    string
-		AdjustTime time.Time
-		Score      float64
+	tsQuery := strings.Join(words, " & ")
+	offset := (q.Page - 1) * q.PageSize
+
+	var posts []post.SearchPost
+	var total int64
+
+	countSql := `
+		SELECT COUNT(*) 
+		FROM posts
+		WHERE tokens @@ to_tsquery('simple', ?)
+	`
+	if err := db.GetDB().Raw(countSql, tsQuery).Scan(&total).Error; err != nil {
+		return forms.PostsPage{}, utils.NewAPIError(http.StatusInternalServerError, "统计失败", err)
 	}
 
 	sql := `
@@ -244,11 +239,11 @@ func SearchPosts(c *gin.Context, q forms.SearchPosts) ([]forms.PostItem, error) 
 		FROM posts
 		WHERE tokens @@ to_tsquery('simple', ?)
 		ORDER BY score DESC
-		LIMIT 20
+		LIMIT ? OFFSET ?
 	`
 
-	if err := db.GetDB().Raw(sql, tsQuery, tsQuery, tsQuery).Scan(&posts).Error; err != nil {
-		return nil, utils.NewAPIError(http.StatusInternalServerError, "查询失败", err)
+	if err := db.GetDB().Raw(sql, tsQuery, tsQuery, q.PageSize, offset).Scan(&posts).Error; err != nil {
+		return forms.PostsPage{}, utils.NewAPIError(http.StatusInternalServerError, "查询失败", err)
 	}
 
 	// 构造返回数据
@@ -257,7 +252,7 @@ func SearchPosts(c *gin.Context, q forms.SearchPosts) ([]forms.PostItem, error) 
 		// 获取标签名
 		tagNames, err := services.GetTagNamesByIDs(p.TagIDs)
 		if err != nil {
-			return nil, utils.NewAPIError(http.StatusInternalServerError, "获取标签失败", err)
+			return forms.PostsPage{}, utils.NewAPIError(http.StatusInternalServerError, "获取标签失败", err)
 		}
 
 		// 生成摘要
@@ -269,9 +264,12 @@ func SearchPosts(c *gin.Context, q forms.SearchPosts) ([]forms.PostItem, error) 
 			ImgUrl:     p.ImgUrl,
 			Tags:       tagNames,
 			AdjustTime: p.AdjustTime.Format("2006年01月02日 15:04"),
-			Content:    strings.ReplaceAll(contentSummary, "\n", ""),
+			Summary:    strings.ReplaceAll(contentSummary, "\r\n", ""),
 		}
 	}
 
-	return list, nil
+	return forms.PostsPage{
+		Total: total,
+		List:  list,
+	}, nil
 }

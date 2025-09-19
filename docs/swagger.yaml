@@ -19,16 +19,64 @@ definitions:
     - tags
     - title
     type: object
-  forms.PostResponse:
+  forms.PostItem:
     properties:
-      adjust_time:
+      adjustTime:
+        description: 格式化后的时间
         type: string
       id:
         type: integer
-      img_url:
+      imgUrl:
         type: string
+      summary:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
       title:
         type: string
+    type: object
+  forms.PostResponse:
+    properties:
+      adjustTime:
+        type: string
+      content:
+        type: string
+      id:
+        type: integer
+      imgUrl:
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+    type: object
+  forms.PostsPage:
+    properties:
+      list:
+        items:
+          $ref: '#/definitions/forms.PostItem'
+        type: array
+      total:
+        type: integer
+    type: object
+  forms.SearchPosts:
+    properties:
+      page:
+        minimum: 1
+        type: integer
+      pageSize:
+        maximum: 100
+        minimum: 1
+        type: integer
+      q:
+        type: string
+    required:
+    - page
+    - pageSize
     type: object
   utils.ErrorResponse:
     properties:
@@ -74,6 +122,32 @@ paths:
           schema:
             $ref: '#/definitions/utils.ErrorResponse'
       summary: 创建文章
+      tags:
+      - blog
+  /search:
+    post:
+      consumes:
+      - application/json
+      description: 根据传入的参数搜索文章
+      parameters:
+      - description: 文章关键字
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/forms.SearchPosts'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/forms.PostsPage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorResponse'
+      summary: 搜索文章
       tags:
       - blog
 swagger: "2.0"

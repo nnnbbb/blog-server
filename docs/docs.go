@@ -59,6 +59,46 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/search": {
+            "post": {
+                "description": "根据传入的参数搜索文章",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "blog"
+                ],
+                "summary": "搜索文章",
+                "parameters": [
+                    {
+                        "description": "文章关键字",
+                        "name": "data",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/forms.SearchPosts"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/forms.PostsPage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/utils.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -89,19 +129,90 @@ const docTemplate = `{
                 }
             }
         },
-        "forms.PostResponse": {
+        "forms.PostItem": {
             "type": "object",
             "properties": {
-                "adjust_time": {
+                "adjustTime": {
+                    "description": "格式化后的时间",
                     "type": "string"
                 },
                 "id": {
                     "type": "integer"
                 },
-                "img_url": {
+                "imgUrl": {
                     "type": "string"
                 },
+                "summary": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "forms.PostResponse": {
+            "type": "object",
+            "properties": {
+                "adjustTime": {
+                    "type": "string"
+                },
+                "content": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "imgUrl": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "title": {
+                    "type": "string"
+                }
+            }
+        },
+        "forms.PostsPage": {
+            "type": "object",
+            "properties": {
+                "list": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/forms.PostItem"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "forms.SearchPosts": {
+            "type": "object",
+            "required": [
+                "page",
+                "pageSize"
+            ],
+            "properties": {
+                "page": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "pageSize": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 1
+                },
+                "q": {
                     "type": "string"
                 }
             }

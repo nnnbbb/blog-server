@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"blog-server/db"
+	"blog-server/forms"
 	"blog-server/models"
 	"blog-server/services"
 	"blog-server/utils/response"
@@ -19,7 +20,7 @@ func GetNews(c *gin.Context) {
 		return
 	}
 
-	var newsItems []NewsItem
+	var newsItems []forms.NewsItem
 	for _, post := range posts {
 		description := post.Content
 		runes := []rune(post.Content)
@@ -32,7 +33,7 @@ func GetNews(c *gin.Context) {
 			response.Error(c, http.StatusInternalServerError, "获取标签失败")
 			return
 		}
-		newsItem := NewsItem{
+		newsItem := forms.NewsItem{
 			ID:          post.ID,
 			Title:       post.Title,
 			Description: description,

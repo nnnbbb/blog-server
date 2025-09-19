@@ -31,13 +31,16 @@ type PostItem struct {
 	ImgUrl     string   `json:"imgUrl"`
 	Tags       []string `json:"tags"`
 	AdjustTime string   `json:"adjustTime"` // 格式化后的时间
-	Content    string   `json:"content"`
+	Summary    string   `json:"summary"`
 }
 
 type PostsPage struct {
 	Total int64      `json:"total"`
 	List  []PostItem `json:"list"`
 }
+
 type SearchPosts struct {
-	Q string `form:"q"`
+	Q        string `form:"q"`
+	Page     int    `form:"page" binding:"required,min=1"`
+	PageSize int    `form:"pageSize" binding:"required,min=1,max=100"`
 }
