@@ -121,7 +121,7 @@ func GetPosts(c *gin.Context, q forms.FetchPostsQuery) (forms.PostsPage, error) 
 			Title:      p.Title,
 			ImgUrl:     p.ImgUrl,
 			Tags:       tagNames,
-			AdjustTime: p.AdjustTime.Format("2006年01月02日 15:04"),
+			AdjustTime: p.AdjustTime,
 		}
 	}
 
@@ -263,7 +263,7 @@ func SearchPosts(c *gin.Context, q forms.SearchPosts) (forms.PostsPage, error) {
 			Title:      p.Title,
 			ImgUrl:     p.ImgUrl,
 			Tags:       tagNames,
-			AdjustTime: p.AdjustTime.Format("2006年01月02日 15:04"),
+			AdjustTime: p.AdjustTime,
 			Summary:    strings.ReplaceAll(contentSummary, "\r\n", ""),
 		}
 	}

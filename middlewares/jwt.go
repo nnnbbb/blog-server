@@ -1,8 +1,8 @@
 package middlewares
 
 import (
-	"blog-server/config"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -19,9 +19,7 @@ func JWTMiddleware() gin.HandlerFunc {
 		}
 
 		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
-		config := config.GetConfig()
-		jwtKey := config.GetString("server.jwtKey")
+		jwtKey := os.Getenv("jwtKey")
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			// 检查签名方法

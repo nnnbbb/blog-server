@@ -1,5 +1,7 @@
 package forms
 
+import "time"
+
 type FetchPostQuery struct {
 	Seq int `form:"seq" binding:"required"`
 }
@@ -26,12 +28,12 @@ type FetchPostsQuery struct {
 }
 
 type PostItem struct {
-	ID         uint     `json:"id"`
-	Title      string   `json:"title"`
-	ImgUrl     string   `json:"imgUrl"`
-	Tags       []string `json:"tags"`
-	AdjustTime string   `json:"adjustTime"` // 格式化后的时间
-	Summary    string   `json:"summary"`
+	ID         uint      `json:"id"`
+	Title      string    `json:"title"`
+	ImgUrl     string    `json:"imgUrl"`
+	Tags       []string  `json:"tags"`
+	AdjustTime time.Time `json:"adjustTime"` // 格式化后的时间
+	Summary    string    `json:"summary"`
 }
 
 type PostsPage struct {
