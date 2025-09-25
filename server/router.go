@@ -23,6 +23,12 @@ func NewRouter() *gin.Engine {
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
 	}))
+	router.NoRoute(func(c *gin.Context) {
+		c.JSON(404, gin.H{
+			"error":   "接口不存在",
+			"message": "请求的路径 " + c.Request.URL.Path + " 不存在",
+		})
+	})
 
 	health := new(controllers.HealthController)
 
@@ -69,9 +75,9 @@ func NewRouter() *gin.Engine {
 			postGroup.POST("", utils.BindAndRespondR(controllers.CreatePost))
 
 			// 更新文章
-			postGroup.PUT("/:id", controllers.UpdatePost)
+			postGroup.PUT("/:id", middlewares.JWTMiddleware(), controllers.UpdatePost)
 			// 删除文章
-			postGroup.DELETE("/:id", controllers.DeletePost)
+			postGroup.DELETE("/:id", middlewares.JWTMiddleware(), controllers.DeletePost)
 		}
 
 		thirdpartyGroup := api.Group("thirdparty")
