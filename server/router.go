@@ -53,10 +53,10 @@ func NewRouter() *gin.Engine {
 		// 首页接口
 		homeGroup := api.Group("home")
 		{
-			homeGroup.GET("/get-news", controllers.GetNews) // 获取首页文章列表
+			// 获取首页文章列表
+			homeGroup.GET("/get-news", controllers.GetNews)
 		}
 
-		// 文章相关路由（暂时不需要认证，方便测试）
 		postGroup := api.Group("blog")
 		{
 			// 搜索文章
@@ -72,10 +72,10 @@ func NewRouter() *gin.Engine {
 			)
 
 			// 创建文章
-			postGroup.POST("", utils.BindAndRespondR(controllers.CreatePost))
+			postGroup.POST("", middlewares.JWTMiddleware(), utils.BindAndRespondR(controllers.CreatePost))
 
 			// 更新文章
-			postGroup.PUT("/:id", middlewares.JWTMiddleware(), controllers.UpdatePost)
+			postGroup.PUT("/:id", middlewares.JWTMiddleware(), utils.BindAndRespondR(controllers.UpdatePost))
 			// 删除文章
 			postGroup.DELETE("/:id", middlewares.JWTMiddleware(), controllers.DeletePost)
 		}

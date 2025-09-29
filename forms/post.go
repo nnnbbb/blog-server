@@ -13,6 +13,11 @@ type CreatePostBody struct {
 	ImgUrl  string   `json:"imgUrl" binding:"required"`
 }
 
+type UpdatePostBody struct {
+	Id string `json:"id" binding:"required"`
+	CreatePostBody
+}
+
 type PostResponse struct {
 	ID         uint     `json:"id"`
 	Title      string   `json:"title"`

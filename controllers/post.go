@@ -146,38 +146,33 @@ func GetTags(c *gin.Context) {
 }
 
 // UpdatePost 更新文章
-func UpdatePost(c *gin.Context) {
-	id := c.Param("id")
+func UpdatePost(c *gin.Context, body forms.UpdatePostBody) (forms.PostResponse, error) {
 	var post models.Post
-	if err := db.DB.First(&post, id).Error; err != nil {
-		response.Error(c, http.StatusNotFound, "文章不存在")
-		return
-	}
-
-	var postBody forms.CreatePostBody
-	if err := c.ShouldBindJSON(&postBody); err != nil {
-		response.Error(c, http.StatusBadRequest, "请求参数错误")
-		return
+	if err := db.DB.First(&post, body.Id).Error; err != nil {
+		return forms.PostResponse{}, utils.NewAPIError(http.StatusNotFound, "文章不存在", err)
 	}
 
 	// 调用通用方法获取 tagIDs
-	tagIDs, err := services.ResolveTagIDs(postBody.Tags)
+	tagIDs, err := services.ResolveTagIDs(body.Tags)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "标签处理失败")
-		return
+		return forms.PostResponse{}, utils.NewAPIError(http.StatusInternalServerError, "标签处理失败", err)
 	}
 
-	post.Title = postBody.Title
-	post.Content = postBody.Content
-	post.ImgUrl = postBody.ImgUrl
+	post.Title = body.Title
+	post.Content = body.Content
+	post.ImgUrl = body.ImgUrl
 	post.TagIDs = tagIDs
 
 	if err := db.DB.Save(&post).Error; err != nil {
-		response.Error(c, http.StatusInternalServerError, "文章更新失败")
-		return
+		return forms.PostResponse{}, utils.NewAPIError(http.StatusInternalServerError, "文章更新失败", err)
 	}
 
-	response.Ok(c, post, "文章更新成功")
+	resp := forms.PostResponse{
+		ID:    post.ID,
+		Title: post.Title,
+	}
+
+	return resp, nil
 }
 
 // DeletePost 删除文章

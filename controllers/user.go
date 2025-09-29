@@ -2,9 +2,9 @@ package controllers
 
 import (
 	"net/http"
+	"os"
 	"time"
 
-	"blog-server/config"
 	"blog-server/forms"
 	"blog-server/services"
 	"blog-server/utils"
@@ -35,8 +35,7 @@ func (u UserController) Retrieve(c *gin.Context) {
 }
 
 func GenerateJWT(username string) (string, error) {
-	config := config.GetConfig()
-	jwtKey := config.GetString("server.jwtKey")
+	jwtKey := os.Getenv("jwtKey")
 	stringKey := []byte(jwtKey)
 
 	claims := jwt.MapClaims{
