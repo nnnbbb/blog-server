@@ -83,8 +83,8 @@ func NewRouter() *gin.Engine {
 		thirdpartyGroup := api.Group("thirdparty")
 		{
 			thirdpartyGroup.GET(
-				"/get-weather-by-city",
-				utils.BindAndRespondR(controllers.GetWeather),
+				"/get-weather-by-ip",
+				utils.BindAndRespond(controllers.GetWeather),
 			)
 			thirdpartyGroup.GET(
 				"/random-image-url",

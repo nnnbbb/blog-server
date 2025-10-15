@@ -1,16 +1,20 @@
 package controllers
 
 import (
-	"blog-server/forms"
 	"blog-server/services"
 	"blog-server/utils"
 	"blog-server/utils/hefeng"
+	"encoding/json"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/text/encoding/simplifiedchinese"
+	"golang.org/x/text/transform"
 )
 
 var weatherCache *utils.Cache[gin.H]
@@ -20,10 +24,75 @@ func init() {
 	weatherCache, _ = utils.NewCache[gin.H](100, 60*time.Minute)
 }
 
+// IpCityInfo 表示 IP 对应的城市信息
+type IpCityInfo struct {
+	Addr     string `json:"addr"`
+	City     string `json:"city"`
+	CityCode string `json:"cityCode"` // 根据实际返回字段修改
+}
+
+func GBKToUTF8(s string) ([]byte, error) {
+	reader := transform.NewReader(strings.NewReader(s), simplifiedchinese.GBK.NewDecoder())
+	bytes, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
+}
+
+// GetCityByIP 根据客户端 IP 获取城市信息
+func GetCityByIP(r *http.Request) (*IpCityInfo, error) {
+	// 获取客户端 IP
+	clientIP := r.Header.Get("X-Forwarded-For")
+	if clientIP == "" {
+		clientIP, _, _ = net.SplitHostPort(r.RemoteAddr)
+	} else {
+		// X-Forwarded-For 可能有多个 IP，取第一个
+		clientIP = strings.Split(clientIP, ",")[0]
+	}
+
+	// 调用 pconline 接口
+	url := fmt.Sprintf("https://whois.pconline.com.cn/ipJson.jsp?ip=%s&json=true", clientIP)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0") // 模拟浏览器
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	utf8Body, err := GBKToUTF8(string(body))
+	if err != nil {
+		return nil, err
+	}
+
+	var ipInfo IpCityInfo
+	if err := json.Unmarshal(utf8Body, &ipInfo); err != nil {
+		return nil, err
+	}
+
+	return &ipInfo, nil
+}
+
 // 获取天气
-func GetWeather(c *gin.Context, q forms.GetWeatherQuery) (gin.H, error) {
-	city := q.City
-	cityCode := q.CityCode
+func GetWeather(c *gin.Context) (gin.H, error) {
+
+	cityInfo, err := GetCityByIP(c.Request)
+	if err != nil {
+		return nil, utils.NewAPIError(http.StatusInternalServerError, "获取城市信息错误", err)
+	}
+
+	city := cityInfo.City
+	cityCode := cityInfo.CityCode
 
 	if cityCode == "" {
 		return nil, utils.NewAPIError(http.StatusBadRequest, "参数 cityCode 不能为空")
