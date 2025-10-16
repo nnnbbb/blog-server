@@ -50,7 +50,7 @@ func (u UserController) Login(c *gin.Context, form forms.LoginBody) (string, err
 	username := form.Username
 	password := form.Password
 
-	if username == "admin" && password == "123456" {
+	if username == "admin" && password == "Yxlqwer2025" {
 		token, err := GenerateJWT(username)
 
 		if err != nil {

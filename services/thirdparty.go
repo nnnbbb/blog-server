@@ -66,7 +66,7 @@ type DmoeResponse struct {
 	Height string `json:"height"`
 }
 
-func getRealImageURL(fullURL string) string {
+func GetRealImageURL(fullURL string) string {
 	u, err := url.Parse(fullURL)
 	if err != nil {
 		log.Println("解析 URL 失败:", err)
@@ -105,5 +105,5 @@ func FetchRandomImage() (string, error) {
 		panic(err)
 	}
 
-	return getRealImageURL(data.ImgURL), nil
+	return data.ImgURL, nil
 }
