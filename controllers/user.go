@@ -40,7 +40,7 @@ func GenerateJWT(username string) (string, error) {
 
 	claims := jwt.MapClaims{
 		"username": username,
-		"exp":      time.Now().Add(2 * day).Unix(), // 2 day 有效期
+		"exp":      time.Now().Add(7 * day).Unix(), // 2 day 有效期
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(stringKey)
