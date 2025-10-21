@@ -89,7 +89,7 @@ $deployCmd = @"
 cd $REMOTE_PATH
 export GIN_MODE=release
 chmod +x $REMOTE_PATH/$BINARY_NAME
-pkill $BINARY_NAME || true
+fuser -k 8080/tcp || true
 nohup $REMOTE_PATH/$BINARY_NAME > $REMOTE_PATH/blog-server.log 2>&1 &
 "@
 
