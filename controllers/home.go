@@ -46,6 +46,7 @@ func GetNews(c *gin.Context) {
 			Title:       post.Title,
 			Description: description,
 			Tags:        tagNames,
+			IsPrivate:   post.IsPrivate,
 			AdjustTime:  post.AdjustTime.Format("2006-01-02 15:04"),
 			ImgUrl:      post.ImgUrl,
 		})

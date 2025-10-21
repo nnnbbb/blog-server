@@ -8,4 +8,5 @@ type NewsItem struct {
 	Tags        []string `json:"tags"`
 	ImgUrl      string   `json:"img_url"`
 	AdjustTime  string   `json:"adjustTime"`
+	IsPrivate   bool     `json:"is_private"`
 }
