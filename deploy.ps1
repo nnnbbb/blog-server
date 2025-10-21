@@ -6,7 +6,7 @@
 # === 基本配置 ===
 $GOOS = "linux"
 $GOARCH = "amd64"
-$BINARY_NAME = "blog-app"           # 可执行文件名
+$BINARY_NAME = "blog-server"           # 可执行文件名
 $MAIN_FILE = "main.go"              # 程序入口
 $REMOTE_USER = "root"               # SSH 用户
 $REMOTE_PATH = "/data/blog-server"  # 部署路径
@@ -90,7 +90,7 @@ cd $REMOTE_PATH
 export GIN_MODE=release
 chmod +x $REMOTE_PATH/$BINARY_NAME
 pkill $BINARY_NAME || true
-nohup $REMOTE_PATH/$BINARY_NAME > $REMOTE_PATH/app.log 2>&1 &
+nohup $REMOTE_PATH/$BINARY_NAME > $REMOTE_PATH/blog-server.log 2>&1 &
 "@
 
 ssh -i $PRIVATE_KEY -o StrictHostKeyChecking=no $REMOTE_USER@$REMOTE_HOST "$deployCmd"
