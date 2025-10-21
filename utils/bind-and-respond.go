@@ -51,10 +51,10 @@ func handleError(c *gin.Context, err error) {
 		message = err.Error()
 	}
 
-	c.AbortWithStatusJSON(status, ErrorResponse{
-		Code:         status,
-		ErrorMessage: apiErr.Err.Error(),
-		Message:      message,
+	c.JSON(status, gin.H{
+		"code":         status,
+		"message":      message,
+		"errorMessage": apiErr.Err.Error(),
 	})
 }
 

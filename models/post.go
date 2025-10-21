@@ -14,6 +14,8 @@ type Post struct {
 	TagIDs     pq.Int64Array `gorm:"type:integer[]" json:"tag_ids"`
 	AdjustTime time.Time     `gorm:"default:CURRENT_TIMESTAMP" json:"adjust_time"`
 	Tokens     string        `gorm:"type:tsvector" json:"-"`
+	IsPrivate  bool          `gorm:"default:false" json:"is_private"`
+	IsPinned   bool          `gorm:"default:false" json:"is_pinned"`
 
 	Timestamps
 }

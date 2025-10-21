@@ -66,6 +66,13 @@ func GetPost(c *gin.Context, q forms.FetchPostQuery) (forms.PostResponse, error)
 		return forms.PostResponse{}, utils.NewAPIError(http.StatusBadRequest, "文章获取失败", err)
 	}
 
+	// 如果是私有文章，检查登录状态
+	if post.IsPrivate {
+		if _, loggedIn := c.Get("username"); !loggedIn {
+			return forms.PostResponse{}, utils.NewAPIError(http.StatusUnauthorized, "该文章为私有, 未登录无法访问")
+		}
+	}
+
 	// 压缩 Markdown 字段
 	compressed, err := utils.CompressAndEncode([]byte(post.Content))
 	if err != nil {
@@ -73,7 +80,6 @@ func GetPost(c *gin.Context, q forms.FetchPostQuery) (forms.PostResponse, error)
 	}
 	tagNames, err := services.GetTagNamesByIDs(post.TagIDs)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, "获取标签失败")
 		return forms.PostResponse{}, utils.NewAPIError(http.StatusInternalServerError, "获取标签失败", err)
 	}
 	// 返回时替换原字段

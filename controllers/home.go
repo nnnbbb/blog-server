@@ -14,8 +14,15 @@ import (
 // GetNews 获取首页文章列表（返回简要信息）
 func GetNews(c *gin.Context) {
 	var posts []models.Post
+	query := db.DB.Model(&models.Post{})
 
-	if err := db.DB.Order("created_at DESC").Limit(5).Find(&posts).Error; err != nil {
+	// 判断登录状态
+	_, loggedIn := c.Get("username")
+	if !loggedIn {
+		query = query.Where("is_private = ?", false)
+	}
+
+	if err := query.Order("is_pinned DESC").Order("created_at DESC").Limit(5).Find(&posts).Error; err != nil {
 		response.Error(c, http.StatusInternalServerError, "获取失败")
 		return
 	}
@@ -33,15 +40,15 @@ func GetNews(c *gin.Context) {
 			response.Error(c, http.StatusInternalServerError, "获取标签失败")
 			return
 		}
-		newsItem := forms.NewsItem{
+
+		newsItems = append(newsItems, forms.NewsItem{
 			ID:          post.ID,
 			Title:       post.Title,
 			Description: description,
 			Tags:        tagNames,
 			AdjustTime:  post.AdjustTime.Format("2006-01-02 15:04"),
 			ImgUrl:      post.ImgUrl,
-		}
-		newsItems = append(newsItems, newsItem)
+		})
 	}
 
 	response.Ok(c, newsItems)

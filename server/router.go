@@ -54,7 +54,7 @@ func NewRouter() *gin.Engine {
 		homeGroup := api.Group("home")
 		{
 			// 获取首页文章列表
-			homeGroup.GET("/get-news", controllers.GetNews)
+			homeGroup.GET("/get-news", middlewares.JWTMiddleware(false), controllers.GetNews)
 		}
 
 		postGroup := api.Group("blog")
@@ -68,16 +68,17 @@ func NewRouter() *gin.Engine {
 			postGroup.GET("/get-tags", controllers.GetTags)
 			// 获取单篇文章
 			postGroup.GET("/fetch-blog-by-seq",
+				middlewares.JWTMiddleware(false),
 				utils.BindAndRespondR(controllers.GetPost),
 			)
 
 			// 创建文章
-			postGroup.POST("", middlewares.JWTMiddleware(), utils.BindAndRespondR(controllers.CreatePost))
+			postGroup.POST("", middlewares.JWTMiddleware(true), utils.BindAndRespondR(controllers.CreatePost))
 
 			// 更新文章
-			postGroup.PUT("/:id", middlewares.JWTMiddleware(), utils.BindAndRespondR(controllers.UpdatePost))
+			postGroup.PUT("/:id", middlewares.JWTMiddleware(true), utils.BindAndRespondR(controllers.UpdatePost))
 			// 删除文章
-			postGroup.DELETE("/:id", middlewares.JWTMiddleware(), controllers.DeletePost)
+			postGroup.DELETE("/:id", middlewares.JWTMiddleware(true), controllers.DeletePost)
 		}
 
 		thirdpartyGroup := api.Group("thirdparty")
