@@ -17,11 +17,16 @@ import (
 	"golang.org/x/text/transform"
 )
 
-var weatherCache *utils.Cache[gin.H]
+var (
+	weatherCache *utils.Cache[gin.H]
+	ipCityCache  *utils.Cache[*IpCityInfo]
+)
 
 func init() {
 	// 缓存 100 个城市，缓存 60 分钟
 	weatherCache, _ = utils.NewCache[gin.H](100, 60*time.Minute)
+	// 缓存 1000 个 IP 城市映射，缓存 7*24 小时
+	ipCityCache, _ = utils.NewCache[*IpCityInfo](1000, 7*24*time.Hour)
 }
 
 // IpCityInfo 表示 IP 对应的城市信息
@@ -49,6 +54,10 @@ func GetCityByIP(r *http.Request) (*IpCityInfo, error) {
 	} else {
 		// X-Forwarded-For 可能有多个 IP，取第一个
 		clientIP = strings.Split(clientIP, ",")[0]
+	}
+
+	if val, ok := ipCityCache.Get(clientIP); ok {
+		return val, nil
 	}
 
 	// 调用 pconline 接口
@@ -79,6 +88,9 @@ func GetCityByIP(r *http.Request) (*IpCityInfo, error) {
 	if err := json.Unmarshal(utf8Body, &ipInfo); err != nil {
 		return nil, err
 	}
+
+	// 写入缓存
+	ipCityCache.Set(clientIP, &ipInfo)
 
 	return &ipInfo, nil
 }
