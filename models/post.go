@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/lib/pq"
+	"gorm.io/gorm"
 )
 
 type Post struct {
@@ -18,4 +19,9 @@ type Post struct {
 	IsPinned   bool          `gorm:"default:false" json:"is_pinned"`
 
 	Timestamps
+}
+
+func (p *Post) BeforeUpdate(tx *gorm.DB) (err error) {
+	p.AdjustTime = time.Now().UTC()
+	return nil
 }
