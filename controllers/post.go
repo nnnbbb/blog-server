@@ -32,10 +32,11 @@ func CreatePost(c *gin.Context, body forms.CreatePostBody) (forms.PostResponse, 
 	}
 
 	post := models.Post{
-		Title:   body.Title,
-		Content: body.Content,
-		ImgUrl:  body.ImgUrl,
-		TagIDs:  tagIDs,
+		Title:     body.Title,
+		Content:   body.Content,
+		ImgUrl:    body.ImgUrl,
+		IsPrivate: *body.IsPrivate,
+		TagIDs:    tagIDs,
 	}
 
 	if err := db.DB.Create(&post).Error; err != nil {
@@ -88,6 +89,7 @@ func GetPost(c *gin.Context, q forms.FetchPostQuery) (forms.PostResponse, error)
 		ID:         post.ID,
 		Title:      post.Title,
 		ImgUrl:     post.ImgUrl,
+		IsPrivate:  post.IsPrivate,
 		Tags:       tagNames,
 		Content:    compressed,
 		AdjustTime: post.AdjustTime.Format("2006-01-02 15:04:05"),
@@ -167,6 +169,7 @@ func UpdatePost(c *gin.Context, body forms.UpdatePostBody) (forms.PostResponse, 
 	post.Title = body.Title
 	post.Content = body.Content
 	post.ImgUrl = body.ImgUrl
+	post.IsPrivate = *body.IsPrivate
 	post.TagIDs = tagIDs
 
 	if err := db.DB.Save(&post).Error; err != nil {

@@ -7,10 +7,11 @@ type FetchPostQuery struct {
 }
 
 type CreatePostBody struct {
-	Title   string   `json:"title" binding:"required"`
-	Content string   `json:"content" binding:"required"`
-	Tags    []string `json:"tags" binding:"required"` // JSON 数组
-	ImgUrl  string   `json:"imgUrl" binding:"required"`
+	Title     string   `json:"title" binding:"required"`
+	Content   string   `json:"content" binding:"required"`
+	Tags      []string `json:"tags" binding:"required"` // JSON 数组
+	ImgUrl    string   `json:"imgUrl" binding:"required"`
+	IsPrivate *bool    `json:"isPrivate" binding:"required"`
 }
 
 type UpdatePostBody struct {
@@ -24,6 +25,7 @@ type PostResponse struct {
 	ImgUrl     string   `json:"imgUrl"`
 	Content    string   `json:"content"`
 	AdjustTime string   `json:"adjustTime"`
+	IsPrivate  bool     `json:"isPrivate"`
 	Tags       []string `json:"tags"`
 }
 
