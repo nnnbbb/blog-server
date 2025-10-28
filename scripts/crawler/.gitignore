@@ -1,0 +1,10 @@
+node_modules/
+*.log
+.DS_Store
+.env
+dist/
+*.tmp
+
+# 忽略输出目录中的所有文件，但保留目录
+output/*
+!output/.gitkeep 

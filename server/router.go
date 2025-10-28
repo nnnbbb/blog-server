@@ -91,6 +91,12 @@ func NewRouter() *gin.Engine {
 				"/random-image-url",
 				utils.BindAndRespond(controllers.GetRomdomImage),
 			)
+			// 爬取知乎回答并创建文章
+			thirdpartyGroup.POST(
+				"/crawl-zhihu-answer",
+				middlewares.JWTMiddleware(true),
+				utils.BindAndRespondR(controllers.CrawlAndCreatePost),
+			)
 		}
 
 	}

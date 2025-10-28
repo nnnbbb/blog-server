@@ -1,0 +1,21 @@
+{
+  "name": "zhihu-crawler",
+  "version": "1.0.0",
+  "description": "知乎回答爬虫工具 - 将知乎回答转换为 Markdown 格式",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": ["crawler", "zhihu", "puppeteer", "markdown"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer": "^21.11.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 
