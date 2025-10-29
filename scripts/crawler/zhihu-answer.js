@@ -73,7 +73,7 @@ async function fetchZhihuAnswer(url, debug = false) {
     console.log("正在加载页面...");
     await page.goto(url, {
       waitUntil: "networkidle2",
-      timeout: 60000
+      timeout: 1000 * 60 * 3,
     });
 
     // 等待内容加载
