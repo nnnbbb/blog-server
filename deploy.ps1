@@ -53,7 +53,7 @@ Write-Host "==> 编译 Go 程序为 Linux 二进制文件..." -ForegroundColor C
 $env:GOOS = $GOOS
 $env:GOARCH = $GOARCH
 
-go build -o $BINARY_NAME $MAIN_FILE
+go build -trimpath -o $BINARY_NAME $MAIN_FILE
 if ($LASTEXITCODE -ne 0) {
     Write-Host "❌ 编译失败" -ForegroundColor Red
     exit 1

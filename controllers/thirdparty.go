@@ -8,8 +8,10 @@ import (
 	"blog-server/utils"
 	"blog-server/utils/hefeng"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -20,6 +22,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"golang.org/x/text/encoding/simplifiedchinese"
 	"golang.org/x/text/transform"
+	"gorm.io/gorm"
 )
 
 var (
@@ -169,175 +172,126 @@ func GetRomdomImage(c *gin.Context) (string, error) {
 // @Failure 400 {object} utils.ErrorResponse
 // @Router /thirdparty/crawl [post]
 func CrawlAndCreatePost(c *gin.Context, body forms.CrawlPostBody) (forms.PostResponse, error) {
-	// 调用 Node.js 爬虫脚本
-	cmd := exec.Command("node", "./scripts/crawler/zhihu-answer.js", body.Url)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		return forms.PostResponse{}, utils.NewAPIError(
-			http.StatusInternalServerError,
-			"爬虫执行失败: "+string(output),
-			err,
-		)
-	}
-
-	// 从输出中提取文件路径
-	outputStr := string(output)
-	var filepath string
-
-	// 解析输出，查找 "Markdown 文件已保存:" 行
-	lines := strings.Split(outputStr, "\n")
-	for _, line := range lines {
-		if strings.Contains(line, "Markdown 文件已保存:") {
-			// 提取文件路径
-			parts := strings.Split(line, ":")
-			if len(parts) >= 2 {
-				filepath = strings.TrimSpace(strings.Join(parts[1:], ":"))
-				break
-			}
-		}
-	}
-
-	if filepath == "" {
-		return forms.PostResponse{}, utils.NewAPIError(
-			http.StatusInternalServerError,
-			"无法从爬虫输出中获取文件路径",
-		)
-	}
-
-	// 读取 Markdown 文件
-	content, err := os.ReadFile(filepath)
-	if err != nil {
-		return forms.PostResponse{}, utils.NewAPIError(
-			http.StatusInternalServerError,
-			"读取文件失败",
-			err,
-		)
-	}
-
-	// 从文件名中提取标题（去掉路径和 .md 扩展名）
-	filename := strings.TrimSuffix(strings.Replace(filepath, "\\", "/", -1), ".md")
-	parts := strings.Split(filename, "/")
-	title := parts[len(parts)-1]
-	imgUrl := "https://picx.zhimg.com/70/v2-14a2f0a03e53c29005aef575285dac0f_1440w.avis"
-
-	// 处理标签：固定使用 "文章" 和 "转载"
+	// 处理标签
 	tagIDs, err := services.ResolveTagIDs([]string{"文章", "转载"})
+	const defaultImgUrl = "https://picx.zhimg.com/70/v2-14a2f0a03e53c29005aef575285dac0f_1440w.avis"
 	if err != nil {
-		return forms.PostResponse{}, utils.NewAPIError(
-			http.StatusInternalServerError,
-			"标签处理失败",
-			err,
-		)
+		return forms.PostResponse{}, utils.NewAPIError(http.StatusInternalServerError, "标签处理失败", err)
 	}
 
-	// 检查文章是否已存在
-	var existingPost models.Post
-
-	// 判断 force 参数，默认为 false
+	// 判断 force 参数
 	forceCreate := false
 	if body.Force != nil {
 		forceCreate = *body.Force
 	}
 
-	// 如果文章已存在
-	if err = db.DB.Where("title = ?", title).First(&existingPost).Error; err == nil {
-		// 如果不强制更新，直接返回已存在的文章
-		if !forceCreate {
-			tagNames, err := services.GetTagNamesByIDs(existingPost.TagIDs)
-			if err != nil {
-				return forms.PostResponse{}, utils.NewAPIError(
-					http.StatusInternalServerError,
-					"获取标签名称失败",
-					err,
-				)
-			}
-
-			return forms.PostResponse{
-				ID:         existingPost.ID,
-				Title:      existingPost.Title,
-				ImgUrl:     existingPost.ImgUrl,
-				AdjustTime: existingPost.AdjustTime.Format("2006-01-02 15:04:05"),
-				Tags:       tagNames,
-			}, nil
-		}
-
-		// force=true，更新文章内容
-		existingPost.Content = string(content)
-		existingPost.TagIDs = tagIDs
-		existingPost.ImgUrl = imgUrl
-
-		if err := db.DB.Save(&existingPost).Error; err != nil {
-			return forms.PostResponse{}, utils.NewAPIError(
-				http.StatusInternalServerError,
-				"文章更新失败",
-				err,
-			)
-		}
-
-		// 更新搜索 tokens
-		if err := services.UpdatePostTokens(&existingPost); err != nil {
-			return forms.PostResponse{}, utils.NewAPIError(
-				http.StatusInternalServerError,
-				"文章分词失败",
-				err,
-			)
-		}
-
-		// 获取标签名称
-		tagNames, err := services.GetTagNamesByIDs(existingPost.TagIDs)
-		if err != nil {
-			return forms.PostResponse{}, utils.NewAPIError(
-				http.StatusInternalServerError,
-				"获取标签名称失败",
-				err,
-			)
-		}
-
-		// 返回更新后的文章信息
-		return forms.PostResponse{
-			ID:         existingPost.ID,
-			Title:      existingPost.Title,
-			ImgUrl:     existingPost.ImgUrl,
-			AdjustTime: existingPost.AdjustTime.Format("2006-01-02 15:04:05"),
-			Tags:       tagNames,
-		}, nil
-	}
-
-	// 文章不存在，创建新文章
+	// 创建占位文章
 	post := models.Post{
-		Title:   title,
-		Content: string(content),
-		ImgUrl:  imgUrl,
+		Title:   "正在抓取",
+		Content: "后台抓取中，请稍后刷新查看: " + body.Url,
+		ImgUrl:  defaultImgUrl,
 		TagIDs:  tagIDs,
 	}
 
 	if err := db.DB.Create(&post).Error; err != nil {
-		return forms.PostResponse{}, utils.NewAPIError(
-			http.StatusInternalServerError,
-			"文章创建失败",
-			err,
-		)
+		return forms.PostResponse{}, utils.NewAPIError(http.StatusInternalServerError, "创建占位文章失败", err)
 	}
 
-	// 生成搜索 tokens
-	if err := services.UpdatePostTokens(&post); err != nil {
-		return forms.PostResponse{}, utils.NewAPIError(
-			http.StatusInternalServerError,
-			"文章分词失败",
-			err,
-		)
-	}
+	// 异步爬虫
+	go func(placeholderID uint, body forms.CrawlPostBody) {
+		cmd := exec.Command("node", "./scripts/crawler/zhihu-answer.js", body.Url)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			log.Printf("[Crawler Error] postID=%d 爬虫执行失败: %v, 输出: %s", placeholderID, err, output)
+			return
+		}
 
-	// 获取标签名称
-	tagNames, err := services.GetTagNamesByIDs(tagIDs)
-	if err != nil {
-		return forms.PostResponse{}, utils.NewAPIError(
-			http.StatusInternalServerError,
-			"获取标签名称失败",
-			err,
-		)
-	}
-	// 返回响应
+		// 提取 Markdown 文件路径
+		outputStr := string(output)
+		var filepath string
+		lines := strings.Split(outputStr, "\n")
+		for _, line := range lines {
+			if strings.Contains(line, "Markdown 文件已保存:") {
+				parts := strings.Split(line, ":")
+				if len(parts) >= 2 {
+					filepath = strings.TrimSpace(strings.Join(parts[1:], ":"))
+					break
+				}
+			}
+		}
+
+		if filepath == "" {
+			log.Printf("[Crawler Error] postID=%d 无法从输出中获取文件路径: %s", placeholderID, outputStr)
+			return
+		}
+
+		content, err := os.ReadFile(filepath)
+		if err != nil {
+			log.Printf("[Crawler Error] postID=%d 读取文件失败: %v", placeholderID, err)
+			return
+		}
+
+		// 从文件名中提取标题
+		filename := strings.TrimSuffix(strings.Replace(filepath, "\\", "/", -1), ".md")
+		parts := strings.Split(filename, "/")
+		title := parts[len(parts)-1]
+
+		// 检查是否已有同标题文章
+		var existing models.Post
+		err = db.DB.Where("title = ?", title).First(&existing).Error
+		if err == nil {
+			if !forceCreate {
+				// 已存在 + 不强制 → 删除占位
+				if delErr := db.DB.Delete(&models.Post{}, placeholderID).Error; delErr != nil {
+					log.Printf("[Crawler Warn] 删除占位文章失败: %v", delErr)
+				} else {
+					log.Printf("[Crawler Info] 已存在 [%s]，删除占位文章 ID=%d (force=false)", title, placeholderID)
+				}
+				return
+			}
+
+			// 已存在 + 强制更新 → 更新旧文章，删除占位
+			existing.Content = string(content)
+			existing.ImgUrl = defaultImgUrl
+			if err := db.DB.Save(&existing).Error; err != nil {
+				log.Printf("[Crawler Error] 更新已存在文章失败: %v", err)
+				return
+			}
+			if err := services.UpdatePostTokens(&existing); err != nil {
+				log.Printf("[Crawler Error] 分词失败: %v", err)
+			}
+			db.DB.Delete(&models.Post{}, placeholderID)
+			log.Printf("[Crawler Info] 已强制覆盖文章 [%s] 并删除占位 ID=%d", title, placeholderID)
+			return
+		}
+
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Printf("[Crawler Error] 查询文章失败: %v", err)
+			return
+		}
+
+		// 正常更新占位文章
+		update := map[string]interface{}{
+			"Title":   title,
+			"Content": string(content),
+		}
+		if err := db.DB.Model(&models.Post{}).Where("id = ?", placeholderID).Updates(update).Error; err != nil {
+			log.Printf("[Crawler Error] 更新占位文章失败: %v", err)
+			return
+		}
+
+		var updated models.Post
+		if err := db.DB.First(&updated, placeholderID).Error; err == nil {
+			if err := services.UpdatePostTokens(&updated); err != nil {
+				log.Printf("[Crawler Error] 分词失败: %v", err)
+			}
+		}
+
+		log.Printf("[Crawler Success] postID=%d 抓取完成: %s", placeholderID, title)
+	}(post.ID, body)
+
+	// 返回占位文章响应
+	tagNames, _ := services.GetTagNamesByIDs(tagIDs)
 	resp := forms.PostResponse{
 		ID:         post.ID,
 		Title:      post.Title,
@@ -345,6 +299,5 @@ func CrawlAndCreatePost(c *gin.Context, body forms.CrawlPostBody) (forms.PostRes
 		AdjustTime: post.AdjustTime.Format("2006-01-02 15:04:05"),
 		Tags:       tagNames,
 	}
-
 	return resp, nil
 }
