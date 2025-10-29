@@ -170,7 +170,7 @@ func GetRomdomImage(c *gin.Context) (string, error) {
 // @Router /thirdparty/crawl [post]
 func CrawlAndCreatePost(c *gin.Context, body forms.CrawlPostBody) (forms.PostResponse, error) {
 	// 调用 Node.js 爬虫脚本
-	cmd := exec.Command("node", "./scripts/crawler/index.js", body.Url)
+	cmd := exec.Command("node", "./scripts/crawler/zhihu-answer.js", body.Url)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return forms.PostResponse{}, utils.NewAPIError(
@@ -232,7 +232,6 @@ func CrawlAndCreatePost(c *gin.Context, body forms.CrawlPostBody) (forms.PostRes
 
 	// 检查文章是否已存在
 	var existingPost models.Post
-	err = db.DB.Where("title = ?", title).First(&existingPost).Error
 
 	// 判断 force 参数，默认为 false
 	forceCreate := false
@@ -241,7 +240,7 @@ func CrawlAndCreatePost(c *gin.Context, body forms.CrawlPostBody) (forms.PostRes
 	}
 
 	// 如果文章已存在
-	if err == nil {
+	if err = db.DB.Where("title = ?", title).First(&existingPost).Error; err == nil {
 		// 如果不强制更新，直接返回已存在的文章
 		if !forceCreate {
 			tagNames, err := services.GetTagNamesByIDs(existingPost.TagIDs)
