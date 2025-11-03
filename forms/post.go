@@ -27,6 +27,7 @@ type PostResponse struct {
 	Content    string   `json:"content"`
 	AdjustTime string   `json:"adjustTime"`
 	IsPrivate  bool     `json:"isPrivate"`
+	IsPinned   bool     `json:"isPinned"`
 	Tags       []string `json:"tags"`
 }
 

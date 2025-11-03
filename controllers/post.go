@@ -91,6 +91,7 @@ func GetPost(c *gin.Context, q forms.FetchPostQuery) (forms.PostResponse, error)
 		Title:      post.Title,
 		ImgUrl:     post.ImgUrl,
 		IsPrivate:  post.IsPrivate,
+		IsPinned:   post.IsPinned,
 		Tags:       tagNames,
 		Content:    compressed,
 		AdjustTime: post.AdjustTime.Format("2006-01-02 15:04:05"),
