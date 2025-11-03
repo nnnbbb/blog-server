@@ -12,6 +12,7 @@ type CreatePostBody struct {
 	Tags      []string `json:"tags" binding:"required"` // JSON 数组
 	ImgUrl    string   `json:"imgUrl" binding:"required"`
 	IsPrivate *bool    `json:"isPrivate" binding:"required"`
+	IsPinned  *bool    `json:"isPinned" binding:"required"`
 }
 
 type UpdatePostBody struct {

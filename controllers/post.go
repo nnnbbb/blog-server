@@ -36,6 +36,7 @@ func CreatePost(c *gin.Context, body forms.CreatePostBody) (forms.PostResponse, 
 		Content:   body.Content,
 		ImgUrl:    body.ImgUrl,
 		IsPrivate: *body.IsPrivate,
+		IsPinned:  *body.IsPinned,
 		TagIDs:    tagIDs,
 	}
 
@@ -170,6 +171,7 @@ func UpdatePost(c *gin.Context, body forms.UpdatePostBody) (forms.PostResponse, 
 	post.Content = body.Content
 	post.ImgUrl = body.ImgUrl
 	post.IsPrivate = *body.IsPrivate
+	post.IsPinned = *body.IsPinned
 	post.TagIDs = tagIDs
 
 	if err := db.DB.Save(&post).Error; err != nil {
