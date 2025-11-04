@@ -3,6 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import { withFileLock } from "./utils/withFileLock.js";
 
 /**
 * 1. 安装 puppeteer-extra + stealth 插件
@@ -56,7 +57,7 @@ async function fetchZhihuAnswer(url, debug = false) {
   console.log("正在启动浏览器...");
   const browser = await puppeteer.launch({
     headless: debug ? false : "new",
-    executablePath: '/usr/bin/chromium-browser', // or /usr/bin/chromium
+    // executablePath: '/usr/bin/chromium-browser', // or /usr/bin/chromium
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -361,110 +362,98 @@ async function fetchZhihuAnswer(url, debug = false) {
   }
 }
 
-async function main() {
-  // 解析命令行参数
-  const args = process.argv.slice(2);
-  const debugMode = args.includes("--debug");
-  const url = args.find(arg => !arg.startsWith("--"))
-  if (!url) {
-    console.error("请提供要爬取的 URL, Example:\n\nnode crawler.js https://www.zhihu.com/question/xxxx/answer/xxxx");
-    process.exit(1);
-  }
 
-  console.log(`开始爬取: ${url}`);
-  console.log("使用 puppeteer-extra + stealth 插件绕过反爬虫检测");
-  if (debugMode) {
-    console.log("🐛 调试模式已开启");
-  }
-
+/**
+ * 爬取知乎回答并保存为 Markdown 文件
+ * @param {string} url - 知乎回答链接
+ * @param {boolean} debugMode - 是否开启调试模式
+ */
+export async function crawlAndSaveZhihuAnswer(url, debugMode = false) {
   let browser = null;
+
   try {
-    // 获取并解析页面内容
+    console.log(`开始爬取: ${url}`);
+    console.log("使用 puppeteer-extra + stealth 插件绕过反爬虫检测");
+    if (debugMode) console.log("🐛 调试模式已开启");
+
+    // 🕷 获取并解析页面内容
     const data = await fetchZhihuAnswer(url, debugMode);
     const result = data.result;
     browser = data.browser;
 
-    // 创建输出目录
+    // 📂 创建输出目录
     const outputDir = path.join(__dirname, "output");
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // 生成文件名（使用标题和作者）
-    let filenameParts = [];
-    if (result.title) {
-      filenameParts.push(sanitizeFilename(result.title));
-    }
-    if (result.author) {
-      filenameParts.push(sanitizeFilename(result.author));
-    }
+    // 📝 生成文件名
+    const filenameParts = [];
+    if (result.title) filenameParts.push(sanitizeFilename(result.title));
+    if (result.author) filenameParts.push(sanitizeFilename(result.author));
 
-    const filename = filenameParts.length > 0
-      ? `${filenameParts.join(" - ")}.md`
-      : `zhihu_answer_${new Date().getTime()}.md`;
+    const filename =
+      filenameParts.length > 0
+        ? `${filenameParts.join(" - ")}.md`
+        : `zhihu_answer_${Date.now()}.md`;
     const filepath = path.join(outputDir, filename);
 
-    // 构建 Markdown 内容
-    let markdown = "";
+    // 🧱 构建 Markdown 内容
+    let markdown = result.content + "\n\n";
 
-    // 添加正文内容
-    markdown += result.content;
+    if (result.time) markdown += `${result.time}\n\n`;
 
-    // 添加底部信息
-    markdown += "\n\n";
-
-    // 添加时间信息（已包含地点）
-    if (result.time) {
-      markdown += `${result.time}\n\n`;
-    }
-
-    // 添加原文链接（格式：[标题 - 作者的回答 - 知乎](链接)）
+    // 添加原文链接
     let linkText = "";
-    if (result.title) {
-      linkText += result.title;
-    }
-    if (result.author) {
-      linkText += ` - ${result.author}的回答`;
-    }
-    if (linkText) {
-      linkText += " - 知乎";
-      markdown += `[${linkText}](${url})\n`;
-    } else {
-      markdown += `[原文链接](${url})\n`;
-    }
+    if (result.title) linkText += result.title;
+    if (result.author) linkText += ` - ${result.author}的回答`;
+    if (linkText) linkText += " - 知乎";
+    markdown += `[${linkText || "原文链接"}](${url})\n`;
 
-    // 保存 Markdown 文件
+    // 💾 写入文件
     fs.writeFileSync(filepath, markdown, "utf-8");
     console.log(`\n✓ Markdown 文件已保存: ${filepath}`);
 
+    // ✅ 输出统计信息
     console.log("\n爬取完成！");
     console.log(`标题: ${result.title || "(未找到)"}`);
     console.log(`作者: ${result.author || "(未找到)"}`);
     console.log(`内容长度: ${result.content.length} 字符`);
     console.log(`图片数量: ${result.images.length} 张（使用知乎原始链接）`);
 
-    // 根据调试模式决定是否关闭浏览器
+    // 🧩 调试模式保持浏览器
     if (debugMode) {
       console.log("\n🐛 调试模式：浏览器保持打开状态，按 Ctrl+C 退出");
-      // 保持进程运行
       await new Promise(() => { });
-    } else {
-      if (browser) {
-        await browser.close();
-      }
-    }
-
-  } catch (error) {
-    console.error("爬取失败:", error.message);
-    console.error(error.stack);
-
-    // 发生错误时关闭浏览器
-    if (browser) {
+    } else if (browser) {
       await browser.close();
     }
 
-    process.exit(1);
+  } catch (error) {
+    console.error("❌ 爬取失败:", error.message);
+    console.error(error.stack);
+    if (browser) await browser.close();
+    throw error; // 交给上层处理（比如 withFileLock）
   }
 }
 
+async function main() {
+  const args = process.argv.slice(2);
+  const debugMode = args.includes("--debug");
+  const url = args.find(arg => !arg.startsWith("--"));
+
+  if (!url) {
+    console.error("请提供要爬取的 URL, 例如：");
+    console.error("node crawler.js https://www.zhihu.com/question/xxxx/answer/xxxx");
+    process.exit(1);
+  }
+
+  const lockPath = path.join(__dirname, "crawler.lock");
+
+  await withFileLock(lockPath, async () => {
+    await crawlAndSaveZhihuAnswer(url, debugMode);
+  });
+}
+
 main();
+
