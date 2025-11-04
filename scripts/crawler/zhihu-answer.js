@@ -57,7 +57,7 @@ async function fetchZhihuAnswer(url, debug = false) {
   console.log("正在启动浏览器...");
   const browser = await puppeteer.launch({
     headless: debug ? false : "new",
-    // executablePath: '/usr/bin/chromium-browser', // or /usr/bin/chromium
+    executablePath: '/usr/bin/chromium-browser', // or /usr/bin/chromium
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
