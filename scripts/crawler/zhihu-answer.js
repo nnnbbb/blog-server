@@ -4,6 +4,7 @@ import { fileURLToPath } from "url";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import { withFileLock } from "./utils/withFileLock.js";
+import os from "os";
 
 /**
 * 1. 安装 puppeteer-extra + stealth 插件
@@ -75,7 +76,7 @@ async function fetchZhihuAnswer(url, debug = false) {
   console.log("正在启动浏览器...");
   const browser = await puppeteer.launch({
     headless: debug ? false : true,
-    // executablePath: '/usr/bin/chromium-browser', // or /usr/bin/chromium
+    executablePath: os.platform() === 'linux' ? '/usr/bin/chromium-browser' : null,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
