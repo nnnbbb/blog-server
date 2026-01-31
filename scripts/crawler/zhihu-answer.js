@@ -14,7 +14,25 @@ import { withFileLock } from "./utils/withFileLock.js";
 */
 
 // 使用 stealth 插件绕过反爬虫检测
-puppeteer.use(StealthPlugin());
+puppeteer.use(StealthPlugin({
+  enabledEvasions: new Set([
+    'chrome.app',
+    'chrome.csi',
+    'chrome.loadTimes',
+    'chrome.runtime',
+    'iframe.contentWindow',
+    'media.codecs',
+    'navigator.hardwareConcurrency',
+    'navigator.languages',
+    'navigator.permissions',
+    'navigator.plugins',
+    'navigator.vendor',
+    'navigator.webdriver',
+    'user-agent-override',
+    'webgl.vendor',
+    'window.outerdimensions'
+  ])
+}));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,35 +74,125 @@ function sanitizeFilename(filename) {
 async function fetchZhihuAnswer(url, debug = false) {
   console.log("正在启动浏览器...");
   const browser = await puppeteer.launch({
-    headless: debug ? false : "new",
-    executablePath: '/usr/bin/chromium-browser', // or /usr/bin/chromium
+    headless: debug ? false : true,
+    // executablePath: '/usr/bin/chromium-browser', // or /usr/bin/chromium
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
-      "--disable-blink-features=AutomationControlled"
+      "--disable-blink-features=AutomationControlled",
+      "--disable-dev-shm-usage",
+      "--disable-accelerated-2d-canvas",
+      "--no-first-run",
+      "--no-zygote",
+      "--disable-gpu",
+      "--lang=zh-CN,zh",
+      "--window-size=1920,1080",
+      "--start-maximized"
     ]
   });
 
   try {
     const page = await browser.newPage();
 
-    // 设置视口大小
+    await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+    
+    await page.setExtraHTTPHeaders({
+      "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      "Accept-Encoding": "gzip, deflate, br",
+      "Connection": "keep-alive",
+      "Upgrade-Insecure-Requests": "1"
+    });
+
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, "webdriver", {
+        get: () => false
+      });
+      
+      Object.defineProperty(navigator, "plugins", {
+        get: () => [1, 2, 3, 4, 5]
+      });
+      
+      Object.defineProperty(navigator, "languages", {
+        get: () => ["zh-CN", "zh", "en"]
+      });
+      
+      window.chrome = {
+        runtime: {}
+      };
+      
+      Object.defineProperty(navigator, "permissions", {
+        get: () => ({
+          query: () => Promise.resolve({ state: "granted" })
+        })
+      });
+
+      Object.defineProperty(navigator, "platform", {
+        get: () => "Win32"
+      });
+
+      Object.defineProperty(navigator, "hardwareConcurrency", {
+        get: () => 8
+      });
+
+      Object.defineProperty(navigator, "deviceMemory", {
+        get: () => 8
+      });
+
+      const originalQuery = window.navigator.permissions.query;
+      window.navigator.permissions.query = (parameters) => (
+        parameters.name === "notifications" ?
+          Promise.resolve({ state: Notification.permission }) :
+          originalQuery(parameters)
+      );
+    });
+
     await page.setViewport({ width: 1920, height: 1080 });
 
-    console.log("正在加载页面...");
+    console.log("先访问知乎首页建立会话...");
+    await page.goto("https://www.zhihu.com", {
+      waitUntil: "networkidle2",
+      timeout: 30000,
+    });
+    await sleep(2000 + Math.random() * 2000);
+
+    await page.evaluate(() => {
+      window.scrollTo(0, Math.random() * 300);
+    });
+    await sleep(1000 + Math.random() * 1000);
+
+    console.log("正在加载目标页面...");
     await page.goto(url, {
       waitUntil: "networkidle2",
       timeout: 1000 * 60 * 3,
+      referer: "https://www.zhihu.com"
     });
 
-    // 等待内容加载
+    await sleep(3000 + Math.random() * 2000);
+
+    const currentUrl = page.url();
+    if (currentUrl.includes("unhuman") || currentUrl.includes("account/unhuman")) {
+      if (debug) {
+        console.log("当前URL:", currentUrl);
+        await sleep(10000);
+      }
+      throw new Error("检测到反爬虫验证页面，请稍后重试或使用登录状态");
+    }
+
+    await page.evaluate(() => {
+      window.scrollTo(0, Math.random() * 500);
+    });
+    await sleep(500 + Math.random() * 500);
+
     console.log("等待内容加载...");
     await page.waitForSelector(".RichContent-inner, .Post-RichText, .RichText", { timeout: 30000 }).catch(() => {
       console.log("警告: 未找到内容元素，尝试继续...");
     });
 
-    // 额外等待确保动态内容加载完成
-    await sleep(2000);
+    await page.evaluate(() => {
+      window.scrollTo(0, document.body.scrollHeight / 2);
+    });
+    await sleep(1000 + Math.random() * 1000);
 
     // 关闭可能出现的模态框
     console.log("检查并关闭模态框...");
