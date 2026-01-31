@@ -74,26 +74,36 @@ function sanitizeFilename(filename) {
  */
 async function fetchZhihuAnswer(url, debug = false) {
   console.log("正在启动浏览器...");
-  const browser = await puppeteer.launch({
-    headless: debug ? false : true,
-    executablePath: os.platform() === 'linux' ? '/usr/bin/chromium-browser' : null,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-blink-features=AutomationControlled",
-      "--disable-dev-shm-usage",
-      "--disable-accelerated-2d-canvas",
-      "--no-first-run",
-      "--no-zygote",
-      "--disable-gpu",
-      "--lang=zh-CN,zh",
-      "--window-size=1920,1080",
-      "--start-maximized"
-    ]
-  });
+  let browser;
+  try {
+    browser = await puppeteer.launch({
+      headless: debug ? false : "new",
+      executablePath: os.platform() === 'linux' ? '/usr/bin/chromium-browser' : null,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-blink-features=AutomationControlled",
+        "--disable-dev-shm-usage",
+        "--disable-accelerated-2d-canvas",
+        "--no-first-run",
+        "--no-zygote",
+        "--disable-gpu",
+        "--lang=zh-CN,zh",
+        "--window-size=1920,1080",
+        "--start-maximized"
+      ],
+      timeout: 60000
+    });
+    console.log("✓ 浏览器启动成功");
+  } catch (error) {
+    console.error("❌ 浏览器启动失败:", error.message);
+    throw error;
+  }
 
   try {
+    console.log("正在创建新页面...");
     const page = await browser.newPage();
+    console.log("✓ 页面创建成功");
 
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
     
