@@ -92,7 +92,7 @@ async function fetchZhihuAnswer(url, debug = false) {
         "--window-size=1920,1080",
         "--start-maximized"
       ],
-      timeout: 60000
+      timeout: 600000
     });
     console.log("✓ 浏览器启动成功");
   } catch (error) {
@@ -163,7 +163,7 @@ async function fetchZhihuAnswer(url, debug = false) {
     console.log("先访问知乎首页建立会话...");
     await page.goto("https://www.zhihu.com", {
       waitUntil: "networkidle2",
-      timeout: 30000,
+      timeout: 300000,
     });
     await sleep(2000 + Math.random() * 2000);
 
@@ -175,7 +175,7 @@ async function fetchZhihuAnswer(url, debug = false) {
     console.log("正在加载目标页面...");
     await page.goto(url, {
       waitUntil: "networkidle2",
-      timeout: 1000 * 60 * 3,
+      timeout: 300000,
       referer: "https://www.zhihu.com"
     });
 
@@ -196,7 +196,7 @@ async function fetchZhihuAnswer(url, debug = false) {
     await sleep(500 + Math.random() * 500);
 
     console.log("等待内容加载...");
-    await page.waitForSelector(".RichContent-inner, .Post-RichText, .RichText", { timeout: 30000 }).catch(() => {
+    await page.waitForSelector(".RichContent-inner, .Post-RichText, .RichText", { timeout: 300000 }).catch(() => {
       console.log("警告: 未找到内容元素，尝试继续...");
     });
 
